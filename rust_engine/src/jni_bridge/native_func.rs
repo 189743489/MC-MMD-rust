@@ -2642,6 +2642,7 @@ pub extern "system" fn Java_com_shiroha_mmdskin_NativeFunc_SetPhysicsConfig(
     max_linear_velocity: jfloat,
     max_angular_velocity: jfloat,
     joints_enabled: jboolean,
+    kinematic_filter: jboolean,
     debug_log: jboolean,
 ) {
     use crate::physics::config::{PhysicsConfig, set_config};
@@ -2655,6 +2656,7 @@ pub extern "system" fn Java_com_shiroha_mmdskin_NativeFunc_SetPhysicsConfig(
         max_linear_velocity,
         max_angular_velocity,
         joints_enabled: joints_enabled != 0,
+        kinematic_filter: kinematic_filter != 0,
         debug_log: debug_log != 0,
     };
 

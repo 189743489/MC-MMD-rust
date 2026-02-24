@@ -138,6 +138,9 @@ pub struct MmdModel {
     /// GPU UV Morph 数据是否已初始化
     gpu_uv_morph_initialized: bool,
     
+    /// Group/Flip Morph 递归展开后的有效权重缓冲区（每帧复用，避免分配）
+    effective_weights_buf: Vec<f32>,
+    
     /// 材质 Morph 结果展平缓存（避免每帧分配）
     material_morph_results_flat_cache: Vec<f32>,
     
@@ -251,6 +254,7 @@ impl MmdModel {
             uv_morph_indices: Vec::new(),
             uv_morph_count: 0,
             gpu_uv_morph_initialized: false,
+            effective_weights_buf: Vec::new(),
             material_morph_results_flat_cache: Vec::new(),
             vpd_bone_overrides: HashMap::new(),
             vr_hand_mode: 0,
@@ -1416,10 +1420,9 @@ impl MmdModel {
         self.original_normals.as_ptr()
     }
     
-    // ========== GPU Morph 相关方法 ==========
+    // ========== GPU Morph ==========
     
-    /// 初始化 GPU Morph 数据
-    /// 将稀疏的顶点 Morph 偏移转换为密集格式，供 GPU Compute Shader 使用
+    /// 初始化 GPU 顶点 Morph 数据（稀疏→密集格式）
     pub fn init_gpu_morph_data(&mut self) {
         if self.gpu_morph_initialized {
             return;
@@ -1476,51 +1479,61 @@ impl MmdModel {
         );
     }
     
-    /// 更新 GPU Morph 权重数组（从 MorphManager 同步）
+    /// 计算并缓存所有 Morph 的有效权重（递归展开 Group/Flip）
+    fn compute_and_cache_effective_weights(&mut self) {
+        let morph_count = self.morph_manager.morph_count();
+        if morph_count == 0 {
+            return;
+        }
+        self.effective_weights_buf.resize(morph_count, 0.0);
+        for w in self.effective_weights_buf.iter_mut() {
+            *w = 0.0;
+        }
+        self.morph_manager.compute_effective_weights_into(&mut self.effective_weights_buf);
+    }
+    
+    /// 同步 GPU Morph 权重（公共接口，供 JNI 调用）
     pub fn sync_gpu_morph_weights(&mut self) {
+        self.compute_and_cache_effective_weights();
+        self.sync_gpu_morph_weights_from_cache();
+        self.sync_gpu_uv_morph_weights_from_cache();
+    }
+    
+    /// 同步 GPU 顶点 Morph 有效权重（从已缓存的有效权重读取）
+    fn sync_gpu_morph_weights_from_cache(&mut self) {
         if !self.gpu_morph_initialized || self.vertex_morph_count == 0 {
             return;
         }
-        
-        // 使用保存的索引映射同步权重
         for (gpu_idx, &morph_idx) in self.vertex_morph_indices.iter().enumerate() {
-            if gpu_idx < self.gpu_morph_weights.len() {
-                if let Some(morph) = self.morph_manager.get_morph(morph_idx) {
-                    self.gpu_morph_weights[gpu_idx] = morph.weight;
-                }
+            if gpu_idx < self.gpu_morph_weights.len() && morph_idx < self.effective_weights_buf.len() {
+                self.gpu_morph_weights[gpu_idx] = self.effective_weights_buf[morph_idx];
             }
         }
     }
     
-    /// 获取顶点 Morph 数量
     pub fn get_vertex_morph_count(&self) -> usize {
         self.vertex_morph_count
     }
     
-    /// 获取 GPU Morph 偏移数据指针
     pub fn get_gpu_morph_offsets_ptr(&self) -> *const f32 {
         self.gpu_morph_offsets.as_ptr()
     }
     
-    /// 获取 GPU Morph 偏移数据大小（字节）
     pub fn get_gpu_morph_offsets_size(&self) -> usize {
         self.gpu_morph_offsets.len() * 4
     }
     
-    /// 获取 GPU Morph 权重数据指针
     pub fn get_gpu_morph_weights_ptr(&self) -> *const f32 {
         self.gpu_morph_weights.as_ptr()
     }
     
-    /// 获取 GPU Morph 是否已初始化
     pub fn is_gpu_morph_initialized(&self) -> bool {
         self.gpu_morph_initialized
     }
     
-    // ========== GPU UV Morph 相关方法 ==========
+    // ========== GPU UV Morph ==========
     
-    /// 初始化 GPU UV Morph 数据
-    /// 将稀疏的 UV Morph 偏移转换为密集格式，供 GPU Compute Shader 使用
+    /// 初始化 GPU UV Morph 数据（稀疏→密集格式）
     pub fn init_gpu_uv_morph_data(&mut self) {
         if self.gpu_uv_morph_initialized {
             return;
@@ -1579,16 +1592,14 @@ impl MmdModel {
         );
     }
     
-    /// 同步 GPU UV Morph 权重
-    pub fn sync_gpu_uv_morph_weights(&mut self) {
+    /// 同步 GPU UV Morph 有效权重（从已缓存的有效权重读取）
+    fn sync_gpu_uv_morph_weights_from_cache(&mut self) {
         if !self.gpu_uv_morph_initialized || self.uv_morph_count == 0 {
             return;
         }
         for (gpu_idx, &morph_idx) in self.uv_morph_indices.iter().enumerate() {
-            if gpu_idx < self.gpu_uv_morph_weights.len() {
-                if let Some(morph) = self.morph_manager.get_morph(morph_idx) {
-                    self.gpu_uv_morph_weights[gpu_idx] = morph.weight;
-                }
+            if gpu_idx < self.gpu_uv_morph_weights.len() && morph_idx < self.effective_weights_buf.len() {
+                self.gpu_uv_morph_weights[gpu_idx] = self.effective_weights_buf[morph_idx];
             }
         }
     }
@@ -1703,9 +1714,10 @@ impl MmdModel {
         }
         self.update_morph_animation();
         
-        // Morph 应用后同步 GPU 权重（顶点 Morph + UV Morph）
-        self.sync_gpu_morph_weights();
-        self.sync_gpu_uv_morph_weights();
+        // 一次性计算所有 Morph 有效权重，供顶点和 UV Morph 同步使用
+        self.compute_and_cache_effective_weights();
+        self.sync_gpu_morph_weights_from_cache();
+        self.sync_gpu_uv_morph_weights_from_cache();
         
         // 骨骼更新（物理前）— 先计算当前帧全局变换
         self.update_node_animation(false);
