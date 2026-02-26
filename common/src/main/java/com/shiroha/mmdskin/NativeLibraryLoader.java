@@ -41,7 +41,7 @@ public final class NativeLibraryLoader {
         isLoongArch64 = arch.contains("loongarch64") || arch.contains("loong64");
         isRiscv64 = arch.contains("riscv64");
 
-        // Windows 7 的版本号是 6.1
+        // Windows 7 的版本号是 6.1 
         isWindows7 = isWindows && System.getProperty("os.version").startsWith("6.1");
 
         // Android 检测（FCL/PojavLauncher 等启动器使用标准 JVM）
