@@ -81,7 +81,7 @@ public final class NativeLibraryLoader {
 
     static final String LIBRARY_VERSION = "v1.0.3";
     private static final String RELEASE_BASE_URL =
-            "https://github.com/shiroha-23/MC-MMD-rust/releases/download/" + LIBRARY_VERSION + "/";
+            "https://github.com/189743489/MC-MMD-rust/releases/download/" + LIBRARY_VERSION + "/";
 
     // ==================== 游戏目录缓存 ====================
 
