@@ -32,6 +32,28 @@ jobs:
           name: native-windows-x64
           path: rust_engine/target/release/mmd_engine.dll
 
+ # ==================== Windows 7 Support ====================
+ build-rust-windows-win7-x64: 
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          submodules: recursive
+
+      - name: Setup Rust
+        uses: dtolnay/rust-toolchain@nightly # For win7, nightly ver. is required
+        with:
+          targets: x86_64-win7-windows-msvc
+
+      - name: Build Windows x64 DLL for Windows 7
+        run: cargo build --release --manifest-path rust_engine/Cargo.toml --target x86_64-win7-windows-msvc -Zbuild-std # build-std switches
+
+      - name: Upload artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: native-windows-win7-x64
+          path: rust_engine/target/x86_64-win7-windows-msvc/release/mmd_engine.dll
+
   build-rust-windows-arm64:
     runs-on: windows-latest
     steps:
@@ -349,7 +371,7 @@ jobs:
 
   # ==================== Java 模组构建（通用版：包含所有平台） ====================
   build-java-universal:
-    needs: [build-rust-windows-x64, build-rust-windows-arm64, build-rust-linux-x64, build-rust-linux-arm64, build-rust-linux-loongarch64, build-rust-linux-riscv64, build-rust-macos-x64, build-rust-macos-arm64, build-rust-android-arm64, build-rust-android-amd64]
+    needs: [build-rust-windows-x64, build-rust-windows-win7-x64, build-rust-windows-arm64, build-rust-linux-x64, build-rust-linux-arm64, build-rust-linux-loongarch64, build-rust-linux-riscv64, build-rust-macos-x64, build-rust-macos-arm64, build-rust-android-arm64, build-rust-android-amd64]
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
@@ -372,6 +394,7 @@ jobs:
       - name: Copy ALL natives to resources
         run: |
           mkdir -p common/src/main/resources/natives/windows-x64
+          mkdir -p common/src/main/resources/natives/windows-win7-x64
           mkdir -p common/src/main/resources/natives/windows-arm64
           mkdir -p common/src/main/resources/natives/linux-x64
           mkdir -p common/src/main/resources/natives/linux-arm64
@@ -382,6 +405,7 @@ jobs:
           mkdir -p common/src/main/resources/natives/android-arm64
           mkdir -p common/src/main/resources/natives/android-amd64
           cp native-libs/native-windows-x64/mmd_engine.dll common/src/main/resources/natives/windows-x64/
+          cp native-libs/native-windows-win7-x64/mmd_engine.dll common/src/main/resources/natives/windows-win7-x64/
           cp native-libs/native-windows-arm64/mmd_engine.dll common/src/main/resources/natives/windows-arm64/
           cp native-libs/native-linux-x64/libmmd_engine.so common/src/main/resources/natives/linux-x64/
           cp native-libs/native-linux-arm64/libmmd_engine.so common/src/main/resources/natives/linux-arm64/
@@ -438,7 +462,7 @@ jobs:
 
   # ==================== 统一发布 ====================
   release:
-    needs: [build-rust-windows-x64, build-rust-windows-arm64, build-rust-linux-x64, build-rust-linux-arm64, build-rust-macos-x64, build-rust-macos-arm64, build-rust-android-arm64, build-rust-android-amd64, build-rust-linux-loongarch64, build-rust-linux-riscv64, build-java-universal]
+    needs: [build-rust-windows-x64, build-rust-windows-win7-x64, build-rust-windows-arm64, build-rust-linux-x64, build-rust-linux-arm64, build-rust-macos-x64, build-rust-macos-arm64, build-rust-android-arm64, build-rust-android-amd64, build-rust-linux-loongarch64, build-rust-linux-riscv64, build-java-universal]
     runs-on: ubuntu-latest
     if: startsWith(github.ref, 'refs/tags/v')
     permissions:
@@ -452,6 +476,7 @@ jobs:
       - name: Rename artifacts for clarity
         run: |
           mv artifacts/native-windows-x64/mmd_engine.dll "artifacts/native-windows-x64/mmd_engine-windows-x64_${GITHUB_REF_NAME}.dll"
+          mv artifacts/native-windows-win7-x64/mmd_engine.dll "artifacts/native-windows-win7-x64/mmd_engine-windows-win7-x64_${GITHUB_REF_NAME}.dll"
           mv artifacts/native-windows-arm64/mmd_engine.dll "artifacts/native-windows-arm64/mmd_engine-windows-arm64_${GITHUB_REF_NAME}.dll"
           mv artifacts/native-linux-x64/libmmd_engine.so "artifacts/native-linux-x64/libmmd_engine-linux-x64_${GITHUB_REF_NAME}.so"
           mv artifacts/native-linux-arm64/libmmd_engine.so "artifacts/native-linux-arm64/libmmd_engine-linux-arm64_${GITHUB_REF_NAME}.so"
@@ -469,6 +494,7 @@ jobs:
             artifacts/mmdskin-fabric-*/*.jar
             artifacts/mmdskin-forge-*/*.jar
             artifacts/native-windows-x64/*.dll
+            artifacts/native-windows-win7-x64/*.dll
             artifacts/native-windows-arm64/*.dll
             artifacts/native-linux-x64/*.so
             artifacts/native-linux-arm64/*.so
