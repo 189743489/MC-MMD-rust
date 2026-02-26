@@ -29,6 +29,7 @@ public final class NativeLibraryLoader {
     private static final boolean isAndroid;
     private static final boolean isLinux;
     private static final boolean isWindows = System.getProperty("os.name").toLowerCase().contains("windows");
+    private static final boolean isWindows7;
     private static final boolean isMacOS = System.getProperty("os.name").toLowerCase().contains("mac");
     private static final boolean isArm64;
     private static final boolean isLoongArch64;
@@ -39,6 +40,9 @@ public final class NativeLibraryLoader {
         isArm64 = arch.contains("aarch64") || arch.contains("arm64");
         isLoongArch64 = arch.contains("loongarch64") || arch.contains("loong64");
         isRiscv64 = arch.contains("riscv64");
+
+        // Windows 7 的版本号是 6.1
+        isWindows7 = isWindows && System.getProperty("os.version").startsWith("6.1");
 
         // Android 检测（FCL/PojavLauncher 等启动器使用标准 JVM）
         boolean androidDetected = false;
@@ -119,7 +123,7 @@ public final class NativeLibraryLoader {
         String downloadFileName;
 
         if (isWindows) {
-            String archDir = isArm64 ? "windows-arm64" : "windows-x64";
+            String archDir = isArm64 ? "windows-arm64" : (isWindows7 ? "windows-win7-x64" : "windows-x64");
             logger.info("Windows Env Detected! Arch: " + archDir);
             resourcePath = "/natives/" + archDir + "/mmd_engine.dll";
             fileName = "mmd_engine.dll";
