@@ -121,7 +121,6 @@ public class StageSelectScreen extends Screen {
         MMDCameraController ctrl = MMDCameraController.getInstance();
         ctrl.enterStageMode();
 
-        // 被邀请者已接受邀请，标记等待房主开始
         if (StageInviteManager.getInstance().getWatchingHostUUID() != null) {
             ctrl.setWaitingForHost(true);
         }
@@ -424,7 +423,6 @@ public class StageSelectScreen extends Screen {
         int startColor = canStart ? (hoverStart ? 0xFF50C070 : COLOR_BTN_START) : 0xFF333333;
         g.fill(startX, btnY, startX + btnW, btnY + btnH, startColor);
         
-        // 有已接受成员但未全部准备好时，显示等待准备提示
         StageInviteManager mgr = StageInviteManager.getInstance();
         boolean hasAccepted = !mgr.getAcceptedMembers().isEmpty();
         boolean allReady = mgr.allMembersReady();
@@ -447,7 +445,6 @@ public class StageSelectScreen extends Screen {
         StageInviteManager mgr = StageInviteManager.getInstance();
         boolean useHostCamera = mgr.isUseHostCamera();
         
-        // 使用房主镜头开关
         int toggleX = panelX + 8;
         int toggleY = footerY + 4;
         int toggleW = 20;
@@ -463,7 +460,6 @@ public class StageSelectScreen extends Screen {
         g.drawString(this.font, Component.translatable("gui.mmdskin.stage.use_host_camera"),
                      toggleX + toggleW + 4, toggleY + 1, COLOR_TEXT, false);
         
-        // 影院模式开关
         int toggle2Y = footerY + 18;
         hoverToggle = mouseX >= toggleX && mouseX < toggleX + PANEL_WIDTH - 16
                     && mouseY >= toggle2Y && mouseY < toggle2Y + toggleH;
@@ -475,7 +471,6 @@ public class StageSelectScreen extends Screen {
         g.drawString(this.font, Component.translatable("gui.mmdskin.stage.cinematic"),
                      toggleX + toggleW + 4, toggle2Y + 1, COLOR_TEXT, false);
         
-        // 状态提示 + 按钮
         int btnY = footerY + 34;
         int btnW = (PANEL_WIDTH - 20) / 2;
         int btnH = 16;
@@ -490,12 +485,10 @@ public class StageSelectScreen extends Screen {
         
         int readyX = panelX + 6;
         if (guestReady) {
-            // 已准备好，显示等待房主开始
             g.drawCenteredString(this.font,
                 Component.translatable("gui.mmdskin.stage.waiting_host"),
                 readyX + btnW / 2, btnY + 4, COLOR_TEXT_DIM);
             
-            // 底部状态行
             g.drawCenteredString(this.font,
                 Component.translatable("gui.mmdskin.stage.ready_done"),
                 panelX + PANEL_WIDTH / 2, btnY + 22, COLOR_TOGGLE_ON);
@@ -513,7 +506,6 @@ public class StageSelectScreen extends Screen {
     private boolean canStartStage() {
         StagePack selected = getSelectedPack();
         if (selected == null || !selected.hasMotionVmd()) return false;
-        // 有已接受的成员时，需全员 READY 才能开始
         StageInviteManager mgr = StageInviteManager.getInstance();
         if (!mgr.getAcceptedMembers().isEmpty() && !mgr.allMembersReady()) return false;
         return true;
@@ -528,7 +520,6 @@ public class StageSelectScreen extends Screen {
             
             boolean isGuest = MMDCameraController.getInstance().isWaitingForHost();
             
-            // 房主的高度滑块拖拽
             if (!isGuest) {
                 int footerY = panelY + panelH - FOOTER_HEIGHT;
                 int sliderY = footerY + 18;
@@ -541,14 +532,12 @@ public class StageSelectScreen extends Screen {
                 }
             }
             
-            // 被邀请者：使用房主镜头开关
             if (isGuest && hoverGuestCameraToggle && !guestReady) {
                 StageInviteManager mgr = StageInviteManager.getInstance();
                 mgr.setUseHostCamera(!mgr.isUseHostCamera());
                 return true;
             }
             
-            // 被邀请者：准备好了按钮
             if (isGuest && hoverReady && !guestReady) {
                 guestReady = true;
                 StageInviteManager mgr = StageInviteManager.getInstance();
@@ -738,6 +727,10 @@ public class StageSelectScreen extends Screen {
         if (!stageStarted) {
             MMDCameraController ctrl = MMDCameraController.getInstance();
             if (ctrl.isWaitingForHost()) {
+                UUID hostUUID = StageInviteManager.getInstance().getWatchingHostUUID();
+                if (hostUUID != null) {
+                    StageNetworkHandler.sendLeave(hostUUID);
+                }
                 ctrl.setWaitingForHost(false);
                 ctrl.exitStageMode();
                 StageInviteManager.getInstance().stopWatching();
@@ -778,7 +771,6 @@ public class StageSelectScreen extends Screen {
                 memberData = defaultStageData;
             }
             if (memberData != null) {
-                // 附带房主相机高度偏移和起始帧
                 StageNetworkHandler.sendStageWatch(memberUUID, 
                     memberData + "|HEIGHT:" + cameraHeightOffset + "|FRAME:0.0");
             }

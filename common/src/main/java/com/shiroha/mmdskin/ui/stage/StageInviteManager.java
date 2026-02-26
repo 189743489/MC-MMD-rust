@@ -63,6 +63,10 @@ public final class StageInviteManager {
         memberStates.put(memberUUID, MemberState.READY);
     }
 
+    public void onMemberLeft(UUID memberUUID) {
+        memberStates.put(memberUUID, MemberState.NONE);
+    }
+
     /** 被邀请者是否选择使用房主镜头 */
     private volatile boolean useHostCamera = true;
 
