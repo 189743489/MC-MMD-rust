@@ -92,6 +92,8 @@ public class MMDCameraController {
     private boolean outroIsGuest = false;
 
     private volatile boolean waitingForHost = false;
+    
+
 
     private MMDCameraController() {}
 
@@ -425,6 +427,8 @@ public class MMDCameraController {
 
         // 只有房主广播帧同步，被邀请者不发送
         if (!com.shiroha.mmdskin.ui.stage.StageInviteManager.getInstance().isWatchingStage()) {
+            com.shiroha.mmdskin.renderer.render.StageAnimSyncHelper.syncAllRemoteStageFrame(currentFrame);
+            com.shiroha.mmdskin.renderer.render.StageAnimSyncHelper.syncLocalStageFrame(currentFrame);
             frameSyncCounter++;
             if (frameSyncCounter >= SYNC_INTERVAL_FRAMES) {
                 frameSyncCounter = 0;
@@ -653,6 +657,7 @@ public class MMDCameraController {
     public void setWaitingForHost(boolean waiting) {
         this.waitingForHost = waiting;
     }
+
 
     public java.util.UUID getWatchingHostUUID() {
         return watchingHostUUID;
