@@ -1,4 +1,4 @@
-name: Build and Release
+name: Build & Release
 
 on:
   push:
@@ -32,8 +32,8 @@ jobs:
           name: native-windows-x64
           path: rust_engine/target/release/mmd_engine.dll
 
- # ==================== Windows 7 Support ====================
- build-rust-windows-win7-x64: 
+  # ==================== Windows 7 Support ====================
+  build-rust-windows-win7-x64: 
     runs-on: windows-latest
     steps:
       - uses: actions/checkout@v4
