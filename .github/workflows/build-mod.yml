@@ -44,6 +44,7 @@ jobs:
         uses: dtolnay/rust-toolchain@nightly # For win7, nightly ver. is required
         with:
           targets: x86_64-win7-windows-msvc
+          components: rust-src # build-std requires
 
       - name: Build Windows x64 DLL for Windows 7
         run: cargo build --release --manifest-path rust_engine/Cargo.toml --target x86_64-win7-windows-msvc -Zbuild-std # build-std switches
