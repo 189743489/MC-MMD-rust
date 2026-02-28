@@ -41,17 +41,15 @@ jobs:
           submodules: recursive
 
       - name: Setup Rust
-        uses: dtolnay/rust-toolchain@nightly # For win7, nightly ver. is required
-        with:
-          targets: x86_64-win7-windows-msvc
+        uses: dtolnay/rust-toolchain@stable
 
-      - name: Update Rust (force latest nightly)
+      - name: Change Rust # For win7, latest nightly ver. is required)
         run: |
-          rustup update nightly --force
+          rustup toolchain install nightly
           rustup default nightly
 
       - name: Build Windows x64 DLL for Windows 7
-        run: cargo build --release --manifest-path rust_engine/Cargo.toml --target x86_64-win7-windows-msvc -Zbuild-std # build-std switches
+        run: cargo build --release --manifest-path rust_engine/Cargo.toml --target x86_64-win7-windows-msvc -Z build-std # build-std switches
 
       - name: Upload artifact
         uses: actions/upload-artifact@v4
